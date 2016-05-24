@@ -1,6 +1,8 @@
 from cgi import escape
+from os.path import basename, splitext
 from re import compile, finditer
-from selenium import webdriver
+from selenium import selenium, webdriver
+from selenium.webdriver.common.keys import Keys
 from sys import argv
 
 
@@ -34,13 +36,18 @@ def retrieve_biblio(citations, limit=3):
     :returns: set of bibliographic entries (string)
 
     """
-    d = webdriver.PhantomJS()
+    d = webdriver.PhantomJS(executable_path='/Users/pgaraud/cited/phantomjs')
     d.set_window_size(1280, 1024)
+    d.implicitly_wait(3)
 
     bib = set()
     for c in citations:
-        encoded = escape(c).encode('ascii', 'xmlcharrefreplace')
-        d.get(SCHOLAR_QUERY.format(encoded))
+
+        # entering terms directly via search bar
+        d.get('https://scholar.google.com')
+        search = d.find_element_by_id('gs_hp_tsi')
+        search.send_keys(c)
+        search.send_keys(Keys.ENTER)
         bib |= get_apa_biblio_entry(d, limit)
 
     return bib
@@ -55,6 +62,9 @@ def get_apa_biblio_entry(driver, limit):
     :returns: set of citations
 
     """
+    if 'robot' in driver.page_source.lower():
+        raise AttributeError('Google Scholar requiring ReCaptcha.')
+
     biblios = []
     cite = driver.find_elements_by_link_text('Cite')
     for i in xrange(limit):
@@ -65,8 +75,14 @@ def get_apa_biblio_entry(driver, limit):
 
 if __name__ == '__main__':
     paper = argv[1]
+    paper_name, _ = splitext(basename(paper))
+
+    # extract citations
     citations = find_citations(paper)
+    with open('{}_citations.txt'.format(paper_name), 'w') as f:
+        f.write('\n'.join(c for c in citations))
+
+    # look up APA bibliographical entry
     refs = retrieve_biblio(citations, limit=1)
-    refs = set(['ex1', 'ex2', 'ex3'])
-    with open('{}_references.txt'.format(paper), 'w') as f:
-        f.write('\n'.join(c for c in refs))
+    with open('{}_references.txt'.format(paper_name), 'w') as f:
+        f.write('\n'.join(r.encode('ascii', 'ignore') for r in refs))
