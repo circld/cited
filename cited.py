@@ -1,13 +1,14 @@
-from cgi import escape
 from os.path import basename, splitext
 from re import compile, finditer
-from selenium import selenium, webdriver
+from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from sys import argv
 
 
 CITATION = compile(
-    '[A-Z][A-Za-z-]+(,? ?&? [A-Z][A-Za-z-]*?|,? et al.)*(, \d{4}| \(\d{4}\))'
+    '([A-Za-z]+ ){0,2}[A-Z][A-Za-z-]+(,?( &| and)? '
+    '([A-Za-z]+ ){0,2}[A-Z][A-Za-z-]*?|,? et al.)*'
+    '(,? \d{4}[a-z]?| \(\d{4}[a-z]?\))'
 )
 SCHOLAR_QUERY = 'https://scholar.google.com/scholar?hl=en&as_sdt=0,6&q={}'
 
@@ -25,7 +26,7 @@ def find_citations(filename):
     text = ' '.join(raw_text)
     m = finditer(CITATION, text)
     return set(s.replace('e.g., ', '').replace('see ', '').strip()
-                 for c in m for s in c.group().split(';'))
+               for c in m for s in c.group().split(';'))
 
 
 def retrieve_biblio(citations, limit=3):
@@ -80,9 +81,9 @@ if __name__ == '__main__':
     # extract citations
     citations = find_citations(paper)
     with open('{}_citations.txt'.format(paper_name), 'w') as f:
-        f.write('\n'.join(c for c in citations))
+        f.write('\n'.join(c for c in sorted(citations)))
 
     # look up APA bibliographical entry
-    refs = retrieve_biblio(citations, limit=1)
-    with open('{}_references.txt'.format(paper_name), 'w') as f:
-        f.write('\n'.join(r.encode('ascii', 'ignore') for r in refs))
+    # refs = retrieve_biblio(citations, limit=1)
+    # with open('{}_references.txt'.format(paper_name), 'w') as f:
+    #     f.write('\n'.join(r.encode('ascii', 'ignore') for r in refs))
